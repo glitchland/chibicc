@@ -1582,7 +1582,7 @@ static void emit_text(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog, FILE *out) {
+void codegen_x86(Obj *prog, FILE *out) {
   output_file = out;
 
   File **files = get_input_files();

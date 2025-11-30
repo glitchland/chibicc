@@ -31,6 +31,14 @@ typedef struct Member Member;
 typedef struct Relocation Relocation;
 typedef struct Hideset Hideset;
 
+// wasm support
+typedef enum {
+    TARGET_X86,
+    TARGET_WASM32,
+} Target;
+
+extern Target opt_target;
+
 //
 // strings.c
 //
@@ -405,11 +413,18 @@ Type *struct_type(void);
 void add_type(Node *node);
 
 //
-// codegen.c
+// codegen_x86.c
 //
 
-void codegen(Obj *prog, FILE *out);
+void codegen_x86(Obj *prog, FILE *out);
 int align_to(int n, int align);
+
+//
+// codegen_wasm32.c
+//
+
+void codegen_wasm32(Obj *prog, FILE *out);
+
 
 //
 // unicode.c

@@ -8,6 +8,8 @@ StringArray include_paths;
 bool opt_fcommon = true;
 bool opt_fpic;
 
+Target opt_target = TARGET_X86;
+
 static FileType opt_x;
 static StringArray opt_include;
 static bool opt_E;
@@ -41,7 +43,7 @@ static void usage(int status) {
 
 static bool take_arg(char *arg) {
   char *x[] = {
-    "-o", "-I", "-idirafter", "-include", "-x", "-MF", "-MT", "-Xlinker",
+    "-o", "-I", "-idirafter", "-include", "-x", "-MF", "-MT", "-Xlinker", "--target",
   };
 
   for (int i = 0; i < sizeof(x) / sizeof(*x); i++)
@@ -122,6 +124,21 @@ static void parse_args(int argc, char **argv) {
   StringArray idirafter = {};
 
   for (int i = 1; i < argc; i++) {
+
+    if (!strcmp(argv[i], "--target")) {
+      char *t = argv[++i];
+      if (!t)
+        usage(1);
+
+      if (!strcmp(t, "x86") || !strcmp(t, "x86_64"))
+        opt_target = TARGET_X86;
+      else if (!strcmp(t, "wasm32") || !strcmp(t, "wasm"))
+        opt_target = TARGET_WASM32;
+      else
+        error("<command line>: unknown --target: %s", t);
+      continue;
+    }
+
     if (!strcmp(argv[i], "-###")) {
       opt_hash_hash_hash = true;
       continue;
@@ -532,7 +549,7 @@ static void cc1(void) {
     tok = append_tokens(tok, tok2);
   }
 
-  // Tokenize and parse.
+  // Tokenize and parse base file.
   Token *tok2 = must_tokenize_file(base_file);
   tok = append_tokens(tok, tok2);
   tok = preprocess(tok);
@@ -558,7 +575,11 @@ static void cc1(void) {
   FILE *output_buf = open_memstream(&buf, &buflen);
 
   // Traverse the AST to emit assembly.
-  codegen(prog, output_buf);
+  if (opt_target == TARGET_WASM32)
+    codegen_wasm32(prog, output_buf);
+  else
+    codegen_x86(prog, output_buf);
+
   fclose(output_buf);
 
   // Write the asembly text to a file.
@@ -697,6 +718,8 @@ static FileType get_file_type(char *filename) {
   error("<command line>: unknown file extension: %s", filename);
 }
 
+//
+// Entrypoint
 int main(int argc, char **argv) {
   atexit(cleanup);
   init_macros();
@@ -761,6 +784,20 @@ int main(int argc, char **argv) {
       run_cc1(argc, argv, input, NULL);
       continue;
     }
+
+    // --- WASM32 path: cc1 produces final .wasm, no assembler/linker ---
+    // since we mock libc functions, in the future we could add wasi-libc
+    if (opt_target == TARGET_WASM32) {
+      // Choose default extension if -o not given
+      if (!opt_o) {
+        output = replace_extn(input, ".wasm");
+      }
+      run_cc1(argc, argv, input, output);
+      // No assemble(), no ld args
+      continue;
+    }
+
+    // --- X86 path (existing behavior) ---
 
     // Compile
     if (opt_S) {
