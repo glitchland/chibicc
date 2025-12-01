@@ -936,7 +936,9 @@ static void gen_addr(Node *node) {
 
     case ND_COMMA:
         gen_expr(node->lhs);
-        emit_drop(current_func);
+        if (expr_has_value(node->lhs)) {
+            emit_drop(current_func);
+        }
         gen_addr(node->rhs);
         return;
 
@@ -1282,7 +1284,9 @@ static void gen_expr(Node *node) {
 
     case ND_COMMA:
         gen_expr(node->lhs);
-        emit_drop(current_func);
+        if (expr_has_value(node->lhs)) {
+            emit_drop(current_func);
+        }
         gen_expr(node->rhs);
         return;
 
